@@ -1,0 +1,138 @@
+---
+title: "Exam_2"
+author: "Ricardo Corona"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#clearing the environment
+#rm(list=ls())
+
+#loading the inequality dataset
+library(rio)
+inequality_data = import("inequality.xlsx")
+
+#checking to see if cross sectional or panel
+str(inequality_data)
+summary(inequality_data)
+```
+
+The inequality dataset appears to be a cross sectional dataset as it only incorporates data based on the year 2015. This can be verifies with the above code checking the structure and even recieving a summary of the dataset.
+
+```{r}
+#subsetting scores for sweden and denmark
+library(dplyr)
+gini_scandinavian = subset(inequality_data, country = "Denmark","Sweden")
+
+```
+
+It appears to be better to have lower gini scores overallbased on the previous results
+
+```{r}
+head(inequality_data)
+#creating a function to remove the accent from belarus
+accent.remove = function(x){
+  old = "ú"
+  new = "u"
+  
+  x1 = chartr(old , new, x)
+}
+
+#running new function on dataset to implemnt change
+inequality_data$country = accent.remove(inequality_data$country)
+
+#running head again to ensure change was made
+head(inequality_data)
+
+#sorting data by lowest gii inequality scores
+inequality_data = inequality_data[order(inequality_data$inequality_gini, decreasing = TRUE),]
+
+#running head again to ensure changes in order were made
+head(inequality_data, n = 5)
+```
+
+The top 5 countries are Namibia, Zambia, Botswana, Brazil, and Columbia
+
+```{r}
+gini_mean = mean(inequality_data$inequality_gini, na.rm = TRUE)
+```
+
+The mean iniquality gini score is 36.81 as seen in the code above
+
+```{r}
+#creating dummy variables for ineuality using ifelse
+
+ifelse(high_inequality = inequality_data$inequality_gini > 36.81, yes = 1, no = 0)
+
+ifelse(low_inequality = low_inequality < 36.81, yes = 1, no = 0)
+```
+
+
+```{r}
+#writing a loop for listing actors
+world_actors = c("The World Bank", "The African Development Bank","Bill and Melinda Gates Foundation")
+
+for(i in world_actors){
+  print(i)
+}
+```
+
+```{r}
+#importing world bank variable into R
+library(WDI)
+rural_population = WDI(country = "all",
+indicator = c("SP.RUR.TOTL"), 
+start = 2015, end = 2015, extra = FALSE, cache = NULL)
+
+#merging variable into inequality dataset
+library(tidyverse)
+merged_df = left_join(x= inequality_data,
+y= rural_population,
+by =c("iso2c", "year"))
+
+#removing the extra country.x variable 
+merged_df <-
+merged_df %>%
+select(-c("country.y")) %>% 
+rename("country" = "country.x")
+
+#renaming new variable
+library(data.table)
+setnames(merged_df,"SP.RUR.TOTL", "Rural Population")
+
+#removing NAs on basis of gini and new variable 
+na.omit(merged_df, select=c("inequality_gini", "Rural Population"))
+
+#filtering so that we only keep gini scores above 30
+data_greater_30 =
+merged_df %>%
+dplyr::filter(inequality_gini > 30)
+
+#counting how many countries have the sequence "ai" in their name
+grep("ai",data_greater_30)
+
+
+#using the appy function to take the sum of gini
+gini_only <- subset(data_greater_30,
+select = "inequality_gini")
+apply(gini_only, 2, sum)
+```
+
+```{r}
+#labeling variables in merged_df
+library(labelled)
+var_label(merged_df) = list(`country` = "Country",
+`year` = "year",
+`Rural Population` = "Rural population per country",
+`iso2c`= "ISO-2 Country Code",
+`inequality_gini` = "Gini scores for inequality")
+
+#saving the final dataset
+library(rio)
+export(merged_df, file = "final_data.dta")
+```
+
